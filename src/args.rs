@@ -12,6 +12,8 @@ pub struct Args {
     pub distro: String,
     #[clap(long)]
     pub suite: String,
+    #[clap(long)]
+    pub skip_crawl: bool,
     #[clap(long = "release")]
     pub releases: Vec<String>,
     #[clap(long = "arch")]
