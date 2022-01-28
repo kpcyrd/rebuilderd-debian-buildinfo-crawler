@@ -64,39 +64,43 @@ impl Database {
     }
 
     pub fn add_buildinfo(&self, url: String, content: String) -> Result<Vec<String>> {
-        let buildinfo = content.parse::<buildinfo::Buildinfo>()?;
-
         let mut out = Vec::new();
-        self.sqlite.transaction::<_, Error, _>(|| {
-            let my_url = url.clone();
 
-            // insert buildinfo
-            diesel::insert_into(buildinfos::table)
-                .values(NewBuildinfo { url, content })
-                .execute(&self.sqlite)?;
+        match content.parse::<buildinfo::Buildinfo>() {
+            Ok(buildinfo) => {
+                self.sqlite.transaction::<_, Error, _>(|| {
+                    let my_url = url.clone();
 
-            // get buildinfo row id
-            let buildinfo_id = {
-                use crate::schema::buildinfos::dsl::*;
-                let buildinfo_row = buildinfos
-                    .filter(url.eq(&my_url))
-                    .first::<Buildinfo>(&self.sqlite)?;
-                buildinfo_row.id
-            };
+                    // insert buildinfo
+                    diesel::insert_into(buildinfos::table)
+                        .values(NewBuildinfo { url, content })
+                        .execute(&self.sqlite)?;
 
-            // insert artifacts too
-            for artifact in buildinfo.artifacts {
-                out.push(artifact.to_string());
-                diesel::insert_into(artifacts::table)
-                    .values(NewArtifact {
-                        file_name: artifact,
-                        buildinfo_id,
-                    })
-                    .execute(&self.sqlite)?;
+                    // get buildinfo row id
+                    let buildinfo_id = {
+                        use crate::schema::buildinfos::dsl::*;
+                        let buildinfo_row = buildinfos
+                            .filter(url.eq(&my_url))
+                            .first::<Buildinfo>(&self.sqlite)?;
+                        buildinfo_row.id
+                    };
+
+                    // insert artifacts too
+                    for artifact in buildinfo.artifacts {
+                        out.push(artifact.to_string());
+                        diesel::insert_into(artifacts::table)
+                            .values(NewArtifact {
+                                file_name: artifact,
+                                buildinfo_id,
+                            })
+                            .execute(&self.sqlite)?;
+                    }
+
+                    Ok(())
+                })?;
             }
-
-            Ok(())
-        })?;
+            Err(err) => warn!("Failed to parse buildinfo file: {:#}", err),
+        }
 
         Ok(out)
     }

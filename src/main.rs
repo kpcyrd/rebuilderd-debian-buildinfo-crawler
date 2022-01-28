@@ -46,7 +46,8 @@ async fn main() -> Result<()> {
 
     for pkg in pkgs {
         if let Some(buildinfo) = db.buildinfo_for_artifact_filename(&pkg.file_name)? {
-            info!("Found buildinfo for {:?}: {:?}", pkg.file_name, buildinfo);
+            info!("Found buildinfo for {:?} in database", pkg.file_name);
+            debug!("Found buildinfo for {:?}: {:?}", pkg.file_name, buildinfo);
         } else {
             info!("Missing buildinfo for pkg: {:?}", pkg);
             let url = format!(
