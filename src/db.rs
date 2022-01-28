@@ -63,9 +63,10 @@ impl Database {
         Ok(buildinfo)
     }
 
-    pub fn add_buildinfo(&self, url: String, content: String) -> Result<()> {
+    pub fn add_buildinfo(&self, url: String, content: String) -> Result<Vec<String>> {
         let buildinfo = content.parse::<buildinfo::Buildinfo>()?;
 
+        let mut out = Vec::new();
         self.sqlite.transaction::<_, Error, _>(|| {
             let my_url = url.clone();
 
@@ -85,6 +86,7 @@ impl Database {
 
             // insert artifacts too
             for artifact in buildinfo.artifacts {
+                out.push(artifact.to_string());
                 diesel::insert_into(artifacts::table)
                     .values(NewArtifact {
                         file_name: artifact,
@@ -96,6 +98,6 @@ impl Database {
             Ok(())
         })?;
 
-        Ok(())
+        Ok(out)
     }
 }

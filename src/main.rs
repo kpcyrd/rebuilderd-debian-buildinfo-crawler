@@ -55,17 +55,23 @@ async fn main() -> Result<()> {
             );
             info!("Syncing buildinfos for source pkg: {:?}", url);
             match html::fetch_buildinfo_hrefs(&client, &url).await {
-                Ok(buildinfos) => {
+                Ok(mut buildinfos) => {
+                    buildinfos.reverse();
+
                     for buildinfo_href in buildinfos {
                         let url = format!("{}{}", url, buildinfo_href);
 
                         if db.buildinfo_url_cache(&url)?.is_none() {
-                            info!("Download buildinfo file: {:?}", url);
+                            // Download buildinfo file
                             let buildinfo = utils::fetch_http(&client, &url).await?;
                             let buildinfo = String::from_utf8(buildinfo)?;
 
-                            debug!("Adding to cache for {:?}", url);
-                            db.add_buildinfo(url, buildinfo)?;
+                            info!("Adding to cache for {:?}", url);
+                            let artifacts = db.add_buildinfo(url, buildinfo)?;
+                            if artifacts.contains(&pkg.file_name) {
+                                debug!("Buildinfo contained artifact we're looking for");
+                                break;
+                            }
                         }
                     }
                 }
