@@ -1,0 +1,20 @@
+[package]
+name = "rebuilderd-debian-buildinfo-crawler"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.53"
+clap = { version = "3.0.13", features = ["derive"] }
+diesel = { version = "1.4.8", features = ["sqlite", "chrono"] }
+diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
+env_logger = "0.9.0"
+kuchiki = "0.8.1"
+log = "0.4.14"
+rebuilderd-common = "0.18"
+reqwest = "0.11.9"
+serde_json = "1.0.78"
+tokio = { version="1", features=["macros", "rt-multi-thread", "io-std", "io-util"] }
+xz2 = "0.1.6"
