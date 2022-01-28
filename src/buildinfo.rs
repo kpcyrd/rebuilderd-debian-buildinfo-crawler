@@ -39,7 +39,10 @@ impl FromStr for Buildinfo {
                 // Regular key/value
                 if let Some((key, value)) = line.split_once(": ") {
                     match key {
-                        "Source" => source = Some(value.to_string()),
+                        "Source" => {
+                            let (src, _) = value.split_once(' ').unwrap_or((value, ""));
+                            source = Some(src.to_string());
+                        }
                         "Architecture" => architecture = Some(value.to_string()),
                         "Version" => version = Some(value.to_string()),
                         _ => (),
@@ -898,7 +901,7 @@ lB08tKl42cWzrmGTV0hCxtZlcwXzx+IjsXsva0bnoA8I3Szs8IOXOXLlRXiGcrUN
         assert_eq!(
             buildinfo,
             Buildinfo {
-                source: "courier (1.0.16-3)".to_string(),
+                source: "courier".to_string(),
                 architecture: "amd64".to_string(),
                 version: "1.0.16-3+b1".to_string(),
                 artifacts,
