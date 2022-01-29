@@ -85,15 +85,17 @@ impl Database {
                         buildinfo_row.id
                     };
 
-                    // insert artifacts too
-                    for artifact in buildinfo.artifacts {
-                        out.push(artifact.to_string());
-                        diesel::insert_into(artifacts::table)
-                            .values(NewArtifact {
-                                file_name: artifact,
-                                buildinfo_id,
-                            })
-                            .execute(&self.sqlite)?;
+                    if !buildinfo.architecture.contains("source") {
+                        // insert artifacts too
+                        for artifact in buildinfo.artifacts {
+                            out.push(artifact.to_string());
+                            diesel::insert_into(artifacts::table)
+                                .values(NewArtifact {
+                                    file_name: artifact,
+                                    buildinfo_id,
+                                })
+                                .execute(&self.sqlite)?;
+                        }
                     }
 
                     Ok(())
