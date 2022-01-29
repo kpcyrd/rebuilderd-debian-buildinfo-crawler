@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
     let client = reqwest::Client::new();
 
     let packages_db = utils::read_path_or_url(&client, &args.packages_db).await?;
-    let pkgs = deb::parse_packages_db(&packages_db).await?;
+    let pkgs = deb::parse_compressed_packages_db(&packages_db)?;
     info!("Found {} binary packages in index", pkgs.len());
 
     let mut without_buildinfo = Vec::new();
@@ -104,8 +104,12 @@ async fn main() -> Result<()> {
 
         let group = groups
             .entry(buildinfo.url.clone())
-            .or_insert_with(|| (buildinfo, Vec::new()));
-        group.1.push(pkg);
+            .or_insert_with(|| (buildinfo, HashMap::new()));
+        let list = group
+            .1
+            .entry(pkg.architecture.clone())
+            .or_insert_with(Vec::new);
+        list.push(pkg);
     }
 
     if !without_buildinfo.is_empty() {
@@ -118,38 +122,41 @@ async fn main() -> Result<()> {
     info!("Number of groups: {:?}", groups.len());
     info!(
         "Number of pkgs: {:?}",
-        groups.iter().fold(0, |acc, (_, x)| acc + x.1.len())
+        groups.iter().fold(0, |acc, (_, x)| acc
+            + x.1.values().fold(0, |acc, x| acc + x.len()))
     );
 
     info!("Generating build groups...");
     let mut out = Vec::new();
-    for (_, (model, pkgs)) in groups {
-        let buildinfo = model.content.parse::<buildinfo::Buildinfo>()?;
+    for (_, (model, group)) in groups {
+        for (architecture, pkgs) in group {
+            let buildinfo = model.content.parse::<buildinfo::Buildinfo>()?;
 
-        let mut artifacts = Vec::new();
-        for pkg in pkgs {
-            let url = format!(
-                "https://deb.debian.org/debian/pool/main/{}/{}",
-                pkg.deb_folder, pkg.file_name
-            );
-            artifacts.push(PkgArtifact {
-                name: pkg.name,
-                version: pkg.version,
-                url,
+            let mut artifacts = Vec::new();
+            for pkg in pkgs {
+                let url = format!(
+                    "https://deb.debian.org/debian/pool/main/{}/{}",
+                    pkg.deb_folder, pkg.file_name
+                );
+                artifacts.push(PkgArtifact {
+                    name: pkg.name,
+                    version: pkg.version,
+                    url,
+                });
+            }
+
+            out.push(PkgGroup {
+                name: buildinfo.source,
+                version: buildinfo.version,
+
+                distro: args.distro.clone(),
+                suite: args.suite.clone(),
+                architecture,
+
+                input_url: Some(model.url.clone()),
+                artifacts,
             });
         }
-
-        out.push(PkgGroup {
-            name: buildinfo.source,
-            version: buildinfo.version,
-
-            distro: args.distro.clone(),
-            suite: args.suite.clone(),
-            architecture: buildinfo.architecture,
-
-            input_url: Some(model.url),
-            artifacts,
-        });
     }
 
     info!("Adding packages without buildinfo file...");
@@ -162,43 +169,54 @@ async fn main() -> Result<()> {
 
         let group = missing_groups
             .entry(key)
-            .or_insert_with(|| (src, version.to_string(), Vec::new()));
-        group.2.push(pkg);
+            .or_insert_with(|| (src, version.to_string(), HashMap::new()));
+        let list = group
+            .2
+            .entry(pkg.architecture.clone())
+            .or_insert_with(Vec::new);
+        list.push(pkg);
     }
 
-    for (_, (src, version, pkgs)) in missing_groups {
-        let mut artifacts = Vec::new();
-        for pkg in pkgs {
-            let url = format!(
-                "https://deb.debian.org/debian/pool/main/{}/{}",
-                pkg.deb_folder, pkg.file_name
+    for (_, (src, version, group)) in missing_groups {
+        for (architecture, pkgs) in group {
+            let mut artifacts = Vec::new();
+            for pkg in pkgs {
+                let url = format!(
+                    "https://deb.debian.org/debian/pool/main/{}/{}",
+                    pkg.deb_folder, pkg.file_name
+                );
+                artifacts.push(PkgArtifact {
+                    name: pkg.name,
+                    version: pkg.version,
+                    url,
+                });
+            }
+
+            let missing_buildinfo_url = format!(
+                "https://buildinfos.debian.net/missing-buildinfo/{}/{}",
+                src, version
             );
-            artifacts.push(PkgArtifact {
-                name: pkg.name,
-                version: pkg.version,
-                url,
+            out.push(PkgGroup {
+                name: src.clone(),
+                version: version.clone(),
+
+                distro: args.distro.clone(),
+                suite: args.suite.clone(),
+                architecture,
+
+                input_url: Some(missing_buildinfo_url),
+                artifacts,
             });
         }
-
-        let missing_buildinfo_url = format!(
-            "https://buildinfos.debian.net/missing-buildinfo/{}/{}",
-            src, version
-        );
-        out.push(PkgGroup {
-            name: src,
-            version,
-
-            distro: args.distro.clone(),
-            suite: args.suite.clone(),
-            architecture: "???".to_string(),
-
-            input_url: Some(missing_buildinfo_url),
-            artifacts,
-        });
     }
 
     info!("Sorting list...");
-    out.sort_by(|a, b| a.name.cmp(&b.name).then(a.version.cmp(&b.version)));
+    out.sort_by(|a, b| {
+        a.name
+            .cmp(&b.name)
+            .then(a.version.cmp(&b.version))
+            .then(a.architecture.cmp(&b.architecture))
+    });
 
     info!("Writing final json...");
     let mut stdout = std::io::stdout();

@@ -6,7 +6,6 @@ use std::str::FromStr;
 pub struct Buildinfo {
     pub source: String,
     pub version: String,
-    pub architecture: String,
     pub artifacts: HashSet<String>,
 }
 
@@ -15,7 +14,6 @@ impl FromStr for Buildinfo {
 
     fn from_str(s: &str) -> Result<Self> {
         let mut source = None;
-        let mut architecture = None;
         let mut version = None;
         let mut artifacts = HashSet::new();
 
@@ -43,7 +41,6 @@ impl FromStr for Buildinfo {
                             let (src, _) = value.split_once(' ').unwrap_or((value, ""));
                             source = Some(src.to_string());
                         }
-                        "Architecture" => architecture = Some(value.to_string()),
                         "Version" => version = Some(value.to_string()),
                         _ => (),
                     }
@@ -53,7 +50,6 @@ impl FromStr for Buildinfo {
 
         Ok(Buildinfo {
             source: source.context("Missing `source` field in buildinfo")?,
-            architecture: architecture.context("Missing `architecture` field in buildinfo")?,
             version: version.context("Missing `version` field in buildinfo")?,
             artifacts,
         })
@@ -466,7 +462,6 @@ rLtioF1ivcIxRqx/8541vxERmntZ8Ud0bd1a5DJVGoMAh6AFHjMlqNPJNC3pUYdv
             buildinfo,
             Buildinfo {
                 source: "rust-sniffglue".to_string(),
-                architecture: "amd64".to_string(),
                 version: "0.14.0-2".to_string(),
                 artifacts,
             }
@@ -902,7 +897,6 @@ lB08tKl42cWzrmGTV0hCxtZlcwXzx+IjsXsva0bnoA8I3Szs8IOXOXLlRXiGcrUN
             buildinfo,
             Buildinfo {
                 source: "courier".to_string(),
-                architecture: "amd64".to_string(),
                 version: "1.0.16-3+b1".to_string(),
                 artifacts,
             }
