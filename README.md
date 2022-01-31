@@ -33,6 +33,15 @@ Rebuilderd can then pass the buildinfo files to [debrebuild.py](rebuilderd-debia
 
 This implementation explicitly attempts to work around the build-version/binnmu-version problem described in my blog post [Reproducible Builds: Debian and the case of the missing version string](https://vulns.xyz/2022/01/debian-missing-version-string/). This project should be considered a workaround.
 
+## Usage
+
+```sh
+# Generate the json
+cargo run --release -- --db foo.db --packages-db http://deb.debian.org/debian/dists/sid/main/binary-amd64/Packages.xz --source http://deb.debian.org/debian --distro debian --suite main --release sid --arch amd64 > import.json
+# Import the json into rebuilderd (requires rebuilderd/rebuildctl to be setup and configured)
+rebuildctl pkgs sync-stdin debian main < import.json
+```
+
 ## FAQ
 
 ### The initial import takes very long
@@ -42,6 +51,13 @@ Yes, that's a limitation of this workaround. The second run is faster. 🤞
 ### What's `https://buildinfos.debian.net/missing-buildinfo/`?
 
 If debian distributes a binary package (`.deb`) that we couldn't locate a buildinfo file for, we still output this build group but use a dummy link. Rebuilderd is going to fail to download this buildinfo file and mark the corresponding .deb's as unreproducible.
+
+To show the list of packages in debian unstable with missing buildinfo files, use this command:
+
+```sh
+# Check the usage section how import.json is generated
+grep missing-buildinfo import.json
+```
 
 ### I think this is cool work, how can I get more of this?
 
