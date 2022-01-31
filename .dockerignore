@@ -1,0 +1,12 @@
+Dockerfile
+worker/Dockerfile*
+.dockerignore
+.git
+.gitignore
+target/
+/data
+*.db
+*.db-shm
+*.db-wal
+*.xz
+*.json
